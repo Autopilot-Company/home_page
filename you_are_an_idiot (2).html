@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head><title>you are an idiot</title></head>
+<body style="margin:0;overflow:hidden;">
+
+<audio id="music" src="youareanidiot.mp3" loop></audio>
+
+<style>
+  body { background: #008080; margin: 0; overflow: hidden; }
+
+  #startscreen {
+    position: fixed; inset: 0; background: #008080;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 999999; cursor: pointer;
+  }
+  #startscreen div {
+    background: #c0c0c0; border: 3px solid;
+    border-color: #fff #888 #888 #fff;
+    padding: 30px 50px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    font-size: 18px; font-weight: bold; text-align: center;
+  }
+
+  .popup {
+    position: fixed; border: 3px solid #888; overflow: hidden;
+    box-shadow: 4px 4px 0 #000; width: 480px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    animation: popIn 0.1s ease-out;
+    cursor: default; user-select: none;
+  }
+  @keyframes popIn {
+    from { transform: scale(0.4); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .popup-titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 8px; font-size: 15px; font-weight: bold;
+  }
+  .popup-close {
+    border: none; border-radius: 50%;
+    width: 20px; height: 20px; font-size: 13px;
+    cursor: pointer; font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    background: #ff5f57; color: #7a0000;
+  }
+  .popup-body {
+    padding: 20px 16px 24px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .faces { display: flex; gap: 10px; justify-content: center; }
+  .yai-text { font-size: 28px; font-weight: 900; letter-spacing: 2px; line-height: 1.1; }
+  .yai-sub  { font-size: 18px; font-weight: normal; letter-spacing: 1px; }
+
+  #taskbar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #c0c0c0; border-top: 2px solid #fff;
+    padding: 3px 8px; display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-family: Arial, sans-serif; font-weight: bold;
+    z-index: 99999;
+  }
+  #counter-badge {
+    background: #ff0000; color: white;
+    border-radius: 10px; padding: 1px 8px;
+    font-size: 11px; margin-left: auto;
+  }
+
+  /* BOSS FINALE */
+  #boss {
+    display: none;
+    position: fixed; inset: 0; z-index: 999998;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 40px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    transition: background 0.3s, color 0.3s;
+  }
+  #boss .boss-faces { display: flex; gap: 30px; }
+  #boss .boss-text  { font-size: 80px; font-weight: 900; letter-spacing: 4px; text-align: center; line-height: 1.1; }
+  #boss .boss-sub   { font-size: 40px; font-weight: normal; letter-spacing: 2px; }
+</style>
+
+<div id="startscreen" onclick="startPrank()">
+  <div>Clicca per aprire<br><span style="font-size:13px;font-weight:normal;">una sorpresa ti aspetta</span></div>
+</div>
+
+<div id="taskbar">
+  <svg width="20" height="20" viewBox="0 0 20 20">
+    <polygon points="2,4 9,3 9,9 2,9" fill="#f25022"/>
+    <polygon points="10,3 18,2 18,9 10,9" fill="#7fba00"/>
+    <polygon points="2,10 9,10 9,16 2,17" fill="#00a4ef"/>
+    <polygon points="10,10 18,10 18,18 10,17" fill="#ffb900"/>
+    <line x1="4" y1="0" x2="16" y2="20" stroke="white" stroke-width="1.5" opacity="0.5"/>
+    <line x1="0" y1="8" x2="20" y2="12" stroke="white" stroke-width="1.5" opacity="0.5"/>
+    <circle cx="10" cy="10" r="3" fill="none" stroke="white" stroke-width="1" opacity="0.6"/>
+  </svg>
+  <span id="popup-count">0 finestre aperte</span>
+  <span id="counter-badge">0</span>
+</div>
+
+<div id="boss">
+  <div class="boss-faces" id="boss-faces"></div>
+  <div class="boss-text">YOU ARE AN IDIOT!</div>
+  <div class="boss-sub">HA HA HA HA HA</div>
+</div>
+
+<script>
+const STEP    = 36;
+const RESET_X = 120;
+const POPUP_W = 486;
+const POPUP_H = 320;
+const TASKBAR = 28;
+const MAX_POPUPS = 200;
+
+let globalBlack  = false;
+let spawnCount   = 0;
+let cascadeCount = 0;
+let generation   = 0;
+let popupIndex   = 0;
+let bossMode     = false;
+let dragging = null, dragOffX, dragOffY;
+let cascadeTimer, randomTimer, flashTimer;
+
+function makeFaceSVG(fg, bg, size) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="26" cy="26" r="25" fill="${fg}" stroke="${bg}" stroke-width="2"/>
+    <circle cx="18" cy="20" r="4" fill="${bg}"/>
+    <circle cx="34" cy="20" r="4" fill="${bg}"/>
+    <path d="M14 32 Q26 44 38 32" fill="none" stroke="${bg}" stroke-width="3" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function applyTheme(el, isBlack) {
+  const bg    = isBlack ? '#000' : '#fff';
+  const fg    = isBlack ? '#fff' : '#000';
+  const barBg = isBlack ? '#222' : '#c0c0c0';
+  const barFg = isBlack ? '#fff' : '#000';
+  el.style.background  = bg;
+  el.style.borderColor = isBlack ? '#555' : '#888';
+  el.querySelector('.popup-titlebar').style.background = barBg;
+  el.querySelector('.popup-titlebar').style.color      = barFg;
+  el.querySelector('.popup-body').style.background     = bg;
+  el.querySelectorAll('.yai-text, .yai-sub').forEach(t => t.style.color = fg);
+  el.querySelector('.faces').innerHTML = makeFaceSVG(fg, bg, 90) + makeFaceSVG(fg, bg, 90) + makeFaceSVG(fg, bg, 90);
+}
+
+function flashAll() {
+  globalBlack = !globalBlack;
+
+  if (bossMode) {
+    const bg = globalBlack ? '#000' : '#fff';
+    const fg = globalBlack ? '#fff' : '#000';
+    const boss = document.getElementById('boss');
+    boss.style.background = bg;
+    boss.style.color      = fg;
+    document.getElementById('boss-faces').innerHTML =
+      makeFaceSVG(fg, bg, 200) + makeFaceSVG(fg, bg, 200) + makeFaceSVG(fg, bg, 200);
+    return;
+  }
+
+  document.querySelectorAll('.popup').forEach(el => {
+    const idx = parseInt(el.dataset.idx);
+    applyTheme(el, (idx % 2 === 0) ? globalBlack : !globalBlack);
+  });
+}
+
+function triggerBoss() {
+  bossMode = true;
+  clearInterval(cascadeTimer);
+  clearInterval(randomTimer);
+
+  // Rimuovi tutti i popup
+  document.querySelectorAll('.popup').forEach(el => el.remove());
+  updateCount();
+
+  // Mostra il boss
+  const boss = document.getElementById('boss');
+  const bg = globalBlack ? '#000' : '#fff';
+  const fg = globalBlack ? '#fff' : '#000';
+  boss.style.background = bg;
+  boss.style.color      = fg;
+  boss.style.display    = 'flex';
+  document.getElementById('boss-faces').innerHTML =
+    makeFaceSVG(fg, bg, 200) + makeFaceSVG(fg, bg, 200) + makeFaceSVG(fg, bg, 200);
+
+  document.getElementById('taskbar').style.display = 'none';
+}
+
+function makePopup(x, y) {
+  if (bossMode) return;
+
+  const idx     = popupIndex++;
+  const isBlack = (idx % 2 === 0) ? globalBlack : !globalBlack;
+  const bg      = isBlack ? '#000' : '#fff';
+  const fg      = isBlack ? '#fff' : '#000';
+  const barBg   = isBlack ? '#222' : '#c0c0c0';
+  const barFg   = isBlack ? '#fff' : '#000';
+
+  const el = document.createElement('div');
+  el.className   = 'popup';
+  el.dataset.idx = idx;
+  el.style.left   = x + 'px';
+  el.style.top    = y + 'px';
+  el.style.zIndex = 100 + spawnCount;
+
+  el.innerHTML = `
+    <div class="popup-titlebar" style="background:${barBg};color:${barFg};">
+      <span>you are an idiot</span>
+      <button class="popup-close" onclick="this.closest('.popup').remove();updateCount();">x</button>
+    </div>
+    <div class="popup-body" style="background:${bg};">
+      <div class="faces">${makeFaceSVG(fg,bg,90)}${makeFaceSVG(fg,bg,90)}${makeFaceSVG(fg,bg,90)}</div>
+      <div class="yai-text" style="color:${fg};">YOU ARE AN IDIOT!</div>
+      <div class="yai-sub"  style="color:${fg};">HA HA HA HA HA</div>
+    </div>`;
+
+  el.addEventListener('mousedown', e => {
+    dragging = el;
+    const r = el.getBoundingClientRect();
+    dragOffX = e.clientX - r.left;
+    dragOffY = e.clientY - r.top;
+    el.style.zIndex = 99998;
+  });
+
+  document.body.appendChild(el);
+  spawnCount++;
+  updateCount();
+
+  if (spawnCount >= MAX_POPUPS) triggerBoss();
+}
+
+function getCascadePos() {
+  const screenH = window.innerHeight - TASKBAR;
+  const screenW = window.innerWidth;
+  let x = 10 + generation * RESET_X + cascadeCount * STEP;
+  let y = 10 + cascadeCount * STEP;
+  if (y + POPUP_H > screenH) {
+    generation++; cascadeCount = 0;
+    x = 10 + generation * RESET_X; y = 10;
+  }
+  if (x + POPUP_W > screenW) {
+    generation = 0; cascadeCount = 0;
+    x = 10; y = 10;
+  }
+  return { x, y };
+}
+
+function spawnCascade() {
+  const pos = getCascadePos();
+  makePopup(pos.x, pos.y);
+  cascadeCount++;
+}
+
+function spawnRandom() {
+  const x = Math.random() * Math.max(0, window.innerWidth  - POPUP_W);
+  const y = Math.random() * Math.max(0, window.innerHeight - TASKBAR - POPUP_H);
+  makePopup(x, y);
+}
+
+function updateCount() {
+  const n = document.querySelectorAll('.popup').length;
+  document.getElementById('popup-count').textContent = n + ' finestre aperte';
+  document.getElementById('counter-badge').textContent = n;
+}
+
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  dragging.style.left = (e.clientX - dragOffX) + 'px';
+  dragging.style.top  = (e.clientY - dragOffY) + 'px';
+});
+document.addEventListener('mouseup', () => { dragging = null; });
+
+function startPrank() {
+  const el = document.documentElement;
+  if (el.requestFullscreen)            el.requestFullscreen();
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  else if (el.mozRequestFullScreen)    el.mozRequestFullScreen();
+
+  document.getElementById('music').play().catch(() => {});
+  document.getElementById('startscreen').remove();
+
+  spawnCascade();
+  cascadeTimer = setInterval(spawnCascade, 200);
+
+  setTimeout(() => {
+    spawnRandom();
+    randomTimer = setInterval(spawnRandom, 200);
+  }, 100);
+
+  flashTimer = setInterval(flashAll, 500);
+}
+</script>
+</body>
+</html>
