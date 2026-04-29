@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head><title>you are an idiot</title></head>
+<body style="margin:0;overflow:hidden;">
+
+<!-- AUDIO: metti il file .mp3 nella stessa cartella di questo .html e scrivi il nome qui sotto -->
+<audio id="music" src="youareanidiot.mp3" loop autoplay></audio>
+
+<style>
+  .popup {
+    position: fixed;
+    border: 3px solid #888;
+    overflow: hidden;
+    box-shadow: 4px 4px 0 #000;
+    width: 260px;
+    font-family: 'Arial Black', Arial, sans-serif;
+    animation: popIn 0.12s ease-out;
+    cursor: default;
+    user-select: none;
+  }
+  @keyframes popIn {
+    from { transform: scale(0.4); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .popup-titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 3px 5px;
+    font-size: 11px;
+    font-weight: bold;
+  }
+  .popup-close {
+    border: none;
+    border-radius: 50%;
+    width: 14px; height: 14px;
+    font-size: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    background: #ff5f57;
+    color: #7a0000;
+  }
+  .popup-body {
+    padding: 12px 8px 14px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .faces { display: flex; gap: 6px; justify-content: center; }
+  .yai-text { font-size: 15px; font-weight: 900; letter-spacing: 1px; line-height: 1.1; }
+  #taskbar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #c0c0c0;
+    border-top: 2px solid #fff;
+    padding: 3px 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    z-index: 99999;
+  }
+  #counter-badge {
+    background: #ff0000;
+    color: white;
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 11px;
+    margin-left: auto;
+  }
+  body { background: #008080; }
+</style>
+
+<div id="taskbar">
+  <svg width="20" height="20" viewBox="0 0 20 20">
+    <polygon points="2,4 9,3 9,9 2,9" fill="#f25022"/>
+    <polygon points="10,3 18,2 18,9 10,9" fill="#7fba00"/>
+    <polygon points="2,10 9,10 9,16 2,17" fill="#00a4ef"/>
+    <polygon points="10,10 18,10 18,18 10,17" fill="#ffb900"/>
+    <line x1="4" y1="0" x2="16" y2="20" stroke="white" stroke-width="1.5" opacity="0.5"/>
+    <line x1="0" y1="8" x2="20" y2="12" stroke="white" stroke-width="1.5" opacity="0.5"/>
+    <circle cx="10" cy="10" r="3" fill="none" stroke="white" stroke-width="1" opacity="0.6"/>
+  </svg>
+  <span id="popup-count">0 finestre aperte</span>
+  <span id="counter-badge">0</span>
+</div>
+
+<script>
+let colorToggle = 0;
+let count = 0;
+let dragging = null, dragOffX, dragOffY;
+
+function makeFace(fg, bg) {
+  return `<svg width="52" height="52" viewBox="0 0 52 52" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="26" cy="26" r="25" fill="${fg}" stroke="${bg}" stroke-width="2"/>
+    <circle cx="18" cy="20" r="4" fill="${bg}"/>
+    <circle cx="34" cy="20" r="4" fill="${bg}"/>
+    <path d="M14 32 Q26 44 38 32" fill="none" stroke="${bg}" stroke-width="3" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function spawnPopup() {
+  const isBlack = (colorToggle % 2 === 0);
+  colorToggle++;
+  const bg = isBlack ? '#000000' : '#ffffff';
+  const fg = isBlack ? '#ffffff' : '#000000';
+  const barBg = isBlack ? '#222222' : '#c0c0c0';
+  const barFg = isBlack ? '#ffffff' : '#000000';
+
+  const el = document.createElement('div');
+  el.className = 'popup';
+  el.style.background = bg;
+  el.style.borderColor = isBlack ? '#555' : '#888';
+  el.style.left = Math.random() * Math.max(0, window.innerWidth  - 270) + 'px';
+  el.style.top  = Math.random() * Math.max(0, window.innerHeight - 210) + 'px';
+  el.style.zIndex = 100 + count;
+
+  const face = makeFace(fg, bg);
+  el.innerHTML = `
+    <div class="popup-titlebar" style="background:${barBg};color:${barFg};">
+      <span>you are an idiot</span>
+      <button class="popup-close" onclick="this.closest('.popup').remove();updateCount();">x</button>
+    </div>
+    <div class="popup-body" style="background:${bg};">
+      <div class="faces">${face}${face}${face}</div>
+      <div class="yai-text" style="color:${fg};">YOU ARE AN IDIOT!</div>
+      <div class="yai-text" style="color:${fg};font-size:11px;font-weight:normal;letter-spacing:0;">HA HA HA HA HA</div>
+    </div>`;
+
+  el.addEventListener('mousedown', e => {
+    dragging = el;
+    const r = el.getBoundingClientRect();
+    dragOffX = e.clientX - r.left;
+    dragOffY = e.clientY - r.top;
+    el.style.zIndex = 99998;
+  });
+
+  // Avvia audio al primo click (richiesto dai browser moderni)
+  document.getElementById('music').play().catch(() => {});
+
+  document.body.appendChild(el);
+  count++;
+  updateCount();
+}
+
+function updateCount() {
+  const n = document.querySelectorAll('.popup').length;
+  document.getElementById('popup-count').textContent = n + ' finestre aperte';
+  document.getElementById('counter-badge').textContent = n;
+}
+
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  dragging.style.left = (e.clientX - dragOffX) + 'px';
+  dragging.style.top  = (e.clientY - dragOffY) + 'px';
+});
+document.addEventListener('mouseup', () => { dragging = null; });
+
+spawnPopup();
+setInterval(spawnPopup, 2000);
+</script>
+</body>
+</html>
